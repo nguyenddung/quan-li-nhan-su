@@ -20,7 +20,7 @@ class HRMApp(ctk.CTk):
     def __init__(self, is_admin=True, db_name="hrm_ultimate.db"):
         super().__init__()
         self.is_admin = is_admin
-        self.title("HRM ULTIMATE - Database Management System")
+        self.title("QANGNINH ULTIMATE - Database Management System")
         self.geometry("1200x800")
         self.state("zoomed")
 
@@ -46,7 +46,7 @@ class HRMApp(ctk.CTk):
         # Logo
         logo_frame = ctk.CTkFrame(self.sidebar, fg_color="#1e1b4b", corner_radius=0)
         logo_frame.grid(row=0, column=0, sticky="ew", pady=(0, 20))
-        ctk.CTkLabel(logo_frame, text="HRM ULTIMATE", font=ctk.CTkFont(size=20, weight="bold"), text_color="white").pack(pady=12)
+        ctk.CTkLabel(logo_frame, text="QUANGNINH ULTIMATE", font=ctk.CTkFont(size=20, weight="bold"), text_color="white").pack(pady=12)
         ctk.CTkLabel(logo_frame, text="DATABASE MANAGEMENT SYSTEM", font=ctk.CTkFont(size=9), text_color="#94a3b8").pack()
 
         # Buttons menu
