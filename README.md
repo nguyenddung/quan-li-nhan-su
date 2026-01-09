@@ -1,4 +1,3 @@
-````markdown
 # QUANGNINH ULTIMATE - Modularized Project
 
 Mục tiêu:
