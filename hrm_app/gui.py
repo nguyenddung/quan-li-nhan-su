@@ -7,7 +7,7 @@ import customtkinter as ctk
 import tkinter as tk
 
 from .db import DatabaseManager
-from .views import dashboard, departments, staff, awards, documents
+from .views import dashboard, departments, staff, awards, documents,work_histories
 
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
@@ -55,6 +55,7 @@ class HRMApp(ctk.CTk):
         self.create_menu_button("👥 Nhân sự", 3, self.show_staff)
         self.create_menu_button("🏆 Danh hiệu & Năm", 4, self.show_awards)
         # self.create_menu_button("📄 Hồ sơ tài liệu", 5, self.show_documents)
+        self.create_menu_button("📝 Quá trình công tác", 6, self.show_work_histories)
 
         # MAIN CONTENT
         self.main_content = ctk.CTkFrame(self, fg_color="#f8fafc", corner_radius=0)
@@ -109,3 +110,8 @@ class HRMApp(ctk.CTk):
         self.clear_content()
         self.page_title.configure(text="📄 QUẢN LÝ HỒ SƠ TÀI LIỆU")
         documents.DocumentsView(self, self.db).render()
+    
+    def show_work_histories(self):
+        self.clear_content()
+        self.page_title.configure(text="📝 QUÁ TRÌNH CÔNG TÁC")
+        work_histories.WorkHistoriesView(self, self.db).render()

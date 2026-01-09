@@ -446,6 +446,74 @@ class DatabaseManager:
         cur.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
         conn.commit()
         conn.close()
+     # -----------------------
+    # Work histories (Quá trình công tác) CRUD
+    # -----------------------
+    def add_work_history(self, staff_id, decision_no, ngay_quyet_dinh, cac_vi_tri_cong_tac, giu_chuc_vu, cong_tac_tai_cq, ghi_chu):
+        """
+        Thêm bản ghi quá trình công tác cho staff_id.
+        Các trường ngày có thể lưu dạng text 'YYYY-MM-DD' hoặc định dạng khác tuỳ bạn.
+        """
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute('''
+            INSERT INTO work_histories (staff_id, decision_no, ngay_quyet_dinh, cac_vi_tri_cong_tac, giu_chuc_vu, cong_tac_tai_cq, ghi_chu)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (staff_id, decision_no, ngay_quyet_dinh, cac_vi_tri_cong_tac, giu_chuc_vu, cong_tac_tai_cq, ghi_chu))
+        conn.commit()
+        conn.close()
+
+    def get_work_histories_by_staff(self, staff_id):
+        """
+        Trả về tất cả bản ghi work_histories của 1 nhân viên (staff_id).
+        Kết quả: list các tuple (id, decision_no, ngay_quyet_dinh, cac_vi_tri_cong_tac, giu_chuc_vu, cong_tac_tai_cq, ghi_chu)
+        """
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute('''
+            SELECT id, decision_no, ngay_quyet_dinh, cac_vi_tri_cong_tac, giu_chuc_vu, cong_tac_tai_cq, ghi_chu
+            FROM work_histories
+            WHERE staff_id = ?
+            ORDER BY id DESC
+        ''', (staff_id,))
+        rows = cur.fetchall()
+        conn.close()
+        return rows
+
+    def get_all_work_histories(self):
+        """
+        Trả về tất cả work histories, kèm tên nhân viên và id nhân viên để hiển thị ở view chung.
+        Kết quả: (wh.id, s.full_name, wh.decision_no, wh.ngay_quyet_dinh, ...)
+        """
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute('''
+            SELECT wh.id, s.full_name, wh.decision_no, wh.ngay_quyet_dinh, wh.cac_vi_tri_cong_tac, wh.giu_chuc_vu, wh.cong_tac_tai_cq, wh.ghi_chu, wh.staff_id
+            FROM work_histories wh
+            LEFT JOIN staffs s ON wh.staff_id = s.id
+            ORDER BY wh.id DESC
+        ''')
+        rows = cur.fetchall()
+        conn.close()
+        return rows
+
+    def update_work_history(self, wh_id, decision_no, ngay_quyet_dinh, cac_vi_tri_cong_tac, giu_chuc_vu, cong_tac_tai_cq, ghi_chu):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute('''
+            UPDATE work_histories
+            SET decision_no = ?, ngay_quyet_dinh = ?, cac_vi_tri_cong_tac = ?, giu_chuc_vu = ?, cong_tac_tai_cq = ?, ghi_chu = ?
+            WHERE id = ?
+        ''', (decision_no, ngay_quyet_dinh, cac_vi_tri_cong_tac, giu_chuc_vu, cong_tac_tai_cq, ghi_chu, wh_id))
+        conn.commit()
+        conn.close()
+
+    def delete_work_history(self, wh_id):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM work_histories WHERE id = ?", (wh_id,))
+        conn.commit()
+        conn.close()
 
     # -----------------------
     # Statistics
