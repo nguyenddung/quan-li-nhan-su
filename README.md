@@ -1,5 +1,5 @@
 ````markdown
-# HRM ULTIMATE - Modularized Project
+# QUANGNINH ULTIMATE - Modularized Project
 
 Mục tiêu:
 - Tách code lớn thành các module nhỏ để dễ debug, maintain và mở rộng.
