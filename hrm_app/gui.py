@@ -21,7 +21,7 @@ class HRMApp(ctk.CTk):
         super().__init__()
         self.is_admin = is_admin
         self.title("QANGNINH ULTIMATE - Database Management System")
-        self.geometry("1200x800")
+        self.geometry("1920x1080")
         self.state("zoomed")
 
         # Database

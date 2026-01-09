@@ -73,7 +73,7 @@ class DatabaseManager:
             )
         ''')
 
-        # award_years
+        # award_years (giữ nguyên)
         cur.execute('''
             CREATE TABLE IF NOT EXISTS award_years (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,38 +81,49 @@ class DatabaseManager:
             )
         ''')
 
-        # award_titles
+        # award_titles: thêm column level nếu cần; scope có thể đã tồn tại ở schema cũ
         cur.execute('''
             CREATE TABLE IF NOT EXISTS award_titles (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
-                scope TEXT
+                scope TEXT,
+                level TEXT
             )
         ''')
 
-        # award_batches
+        # award_authorities (mới)
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS award_authorities (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE
+            )
+        ''')
+
+        # award_batches: ensure authority_id column exists
         cur.execute('''
             CREATE TABLE IF NOT EXISTS award_batches (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 award_year_id INTEGER NOT NULL,
                 award_title_id INTEGER NOT NULL,
+                authority_id INTEGER,
                 decision_no TEXT,
                 decision_date DATE,
                 note TEXT,
                 FOREIGN KEY (award_year_id) REFERENCES award_years(id) ON DELETE CASCADE,
-                FOREIGN KEY (award_title_id) REFERENCES award_titles(id) ON DELETE CASCADE
+                FOREIGN KEY (award_title_id) REFERENCES award_titles(id) ON DELETE CASCADE,
+                FOREIGN KEY (authority_id) REFERENCES award_authorities(id) ON DELETE SET NULL
             )
         ''')
-
-        # staff_awards
+      
+        # staff_awards (giữ nguyên schema nhưng đảm bảo FK)
         cur.execute('''
             CREATE TABLE IF NOT EXISTS staff_awards (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 staff_id INTEGER NOT NULL,
                 award_batch_id INTEGER NOT NULL,
                 note TEXT,
-                FOREIGN KEY (staff_id) REFERENCES staffs(id) ON DELETE CASCADE,
-                FOREIGN KEY (award_batch_id) REFERENCES award_batches(id) ON DELETE CASCADE
+                FOREIGN KEY (staff_id) REFERENCES staffs (id) ON DELETE CASCADE,
+                FOREIGN KEY (award_batch_id) REFERENCES award_batches (id) ON DELETE CASCADE
             )
         ''')
 
@@ -123,15 +134,289 @@ class DatabaseManager:
                 department_id INTEGER NOT NULL,
                 award_batch_id INTEGER NOT NULL,
                 note TEXT,
-                FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
-                FOREIGN KEY (award_batch_id) REFERENCES award_batches(id) ON DELETE CASCADE
+                FOREIGN KEY (department_id) REFERENCES departments (id) ON DELETE CASCADE,
+                FOREIGN KEY (award_batch_id) REFERENCES award_batches (id) ON DELETE CASCADE
             )
         ''')
 
         conn.commit()
         conn.close()
-        self.add_sample_data()
 
+        # (Tùy chọn) Add some sample data if empty
+        self._ensure_sample_award_data()
+
+    def _ensure_sample_award_data(self):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM award_years")
+        if cur.fetchone()[0] == 0:
+            cur.execute("INSERT INTO award_years (year) VALUES (2023)")
+            cur.execute("INSERT INTO award_years (year) VALUES (2024)")
+        cur.execute("SELECT COUNT(*) FROM award_titles")
+        if cur.fetchone()[0] == 0:
+            cur.execute("INSERT INTO award_titles (name, scope, level) VALUES (?, ?, ?)",
+                        ("Lao động tiên tiến", "ca_nhan", "co_so"))
+            cur.execute("INSERT INTO award_titles (name, scope, level) VALUES (?, ?, ?)",
+                        ("Tập thể xuất sắc", "tap_the", "tinh"))
+        conn.commit()
+        conn.close()
+
+    # ----------------------------
+    # Award Years
+    # ----------------------------
+    def get_all_award_years(self):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT id, year FROM award_years ORDER BY year DESC")
+        rows = cur.fetchall()
+        conn.close()
+        return rows
+
+    def add_award_year(self, year):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute("INSERT INTO award_years (year) VALUES (?)", (year,))
+            conn.commit()
+            conn.close()
+            return True
+        except sqlite3.IntegrityError:
+            conn.close()
+            return False
+
+    def delete_award_year(self, year_id):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM award_years WHERE id = ?", (year_id,))
+        conn.commit()
+        conn.close()
+
+    # ----------------------------
+    # Award Titles
+    # ----------------------------
+    def get_all_award_titles(self):
+        """Trả về id, name, scope, level"""
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT id, name, scope, level FROM award_titles ORDER BY id")
+        rows = cur.fetchall()
+        conn.close()
+        return rows
+
+    def add_award_title(self, name, scope, level):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO award_titles (name, scope, level) VALUES (?, ?, ?)", (name, scope, level))
+        conn.commit()
+        conn.close()
+
+    def update_award_title(self, title_id, name, scope, level):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute("UPDATE award_titles SET name = ?, scope = ?, level = ? WHERE id = ?", (name, scope, level, title_id))
+        conn.commit()
+        conn.close()
+
+    def delete_award_title(self, title_id):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM award_titles WHERE id = ?", (title_id,))
+        conn.commit()
+        conn.close()
+
+    # ----------------------------
+    # Award Authorities
+    # ----------------------------
+    def get_all_award_authorities(self):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT id, name FROM award_authorities ORDER BY name")
+        rows = cur.fetchall()
+        conn.close()
+        return rows
+
+    def add_award_authority(self, name):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute("INSERT INTO award_authorities (name) VALUES (?)", (name,))
+            conn.commit()
+        except sqlite3.IntegrityError:
+            pass
+        conn.close()
+
+    def delete_award_authority(self, auth_id):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM award_authorities WHERE id = ?", (auth_id,))
+        conn.commit()
+        conn.close()
+
+    # ----------------------------
+    # Award Batches (Đợt / Quyết định)
+    # ----------------------------
+    def get_all_award_batches(self):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute('''
+            SELECT ab.id, ay.year, at.name, at.level, aa.name, ab.decision_no, ab.decision_date, ab.note, ab.award_year_id, ab.award_title_id, ab.authority_id
+            FROM award_batches ab
+            LEFT JOIN award_years ay ON ab.award_year_id = ay.id
+            LEFT JOIN award_titles at ON ab.award_title_id = at.id
+            LEFT JOIN award_authorities aa ON ab.authority_id = aa.id
+            ORDER BY ab.decision_date DESC
+        ''')
+        rows = cur.fetchall()
+        conn.close()
+        return rows
+
+    def add_award_batch(self, award_year_id, award_title_id, authority_id, decision_no, decision_date, note):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute('''
+            INSERT INTO award_batches (award_year_id, award_title_id, authority_id, decision_no, decision_date, note)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (award_year_id, award_title_id, authority_id, decision_no, decision_date, note))
+        conn.commit()
+        conn.close()
+
+    def update_award_batch(self, batch_id, award_year_id, award_title_id, authority_id, decision_no, decision_date, note):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute('''
+            UPDATE award_batches
+            SET award_year_id = ?, award_title_id = ?, authority_id = ?, decision_no = ?, decision_date = ?, note = ?
+            WHERE id = ?
+        ''', (award_year_id, award_title_id, authority_id, decision_no, decision_date, note, batch_id))
+        conn.commit()
+        conn.close()
+
+    def delete_award_batch(self, batch_id):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM award_batches WHERE id = ?", (batch_id,))
+        conn.commit()
+        conn.close()
+
+    # ----------------------------
+    # Staff awards (khen cho cá nhân)
+    # ----------------------------
+    def add_staff_award(self, staff_id, award_batch_id, note):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO staff_awards (staff_id, award_batch_id, note) VALUES (?, ?, ?)", (staff_id, award_batch_id, note))
+        conn.commit()
+        conn.close()
+
+    def delete_staff_award(self, sa_id):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM staff_awards WHERE id = ?", (sa_id,))
+        conn.commit()
+        conn.close()
+
+    def get_staff_awards_by_staff(self, staff_id):
+        """
+        Trả về danh sách khen thưởng cho 1 nhân viên (dùng query mẫu của bạn).
+        Kết quả: list tuple gồm (full_name, year, danh_hieu, level, decision_no, decision_date, authority_name, staff_award_id, award_batch_id, note)
+        """
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute('''
+            SELECT
+                s.full_name,
+                ay.year,
+                at.name AS danh_hieu,
+                at.level AS cap,
+                ab.decision_no,
+                ab.decision_date,
+                aa.name AS co_quan,
+                sa.id AS staff_award_id,
+                sa.award_batch_id,
+                sa.note
+            FROM staffs s
+            JOIN staff_awards sa ON s.id = sa.staff_id
+            JOIN award_batches ab ON sa.award_batch_id = ab.id
+            JOIN award_titles at ON ab.award_title_id = at.id
+            JOIN award_years ay ON ab.award_year_id = ay.id
+            LEFT JOIN award_authorities aa ON ab.authority_id = aa.id
+            WHERE s.id = ?
+            ORDER BY ay.year DESC, ab.decision_date DESC
+        ''', (staff_id,))
+        rows = cur.fetchall()
+        conn.close()
+        return rows
+
+    # ----------------------------
+    # Department awards (khen cho tập thể)
+    # ----------------------------
+    def add_department_award(self, department_id, award_batch_id, note):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO department_awards (department_id, award_batch_id, note) VALUES (?, ?, ?)", (department_id, award_batch_id, note))
+        conn.commit()
+        conn.close()
+
+    def delete_department_award(self, da_id):
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM department_awards WHERE id = ?", (da_id,))
+        conn.commit()
+        conn.close()
+
+    def get_department_awards_by_department(self, department_id):
+        """
+        Trả về danh sách khen thưởng cho 1 phòng ban.
+        Kết quả: (department_name, year, title_name, decision_no, decision_date, authority_name, department_award_id, award_batch_id, note)
+        """
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute('''
+            SELECT
+                d.name,
+                ay.year,
+                at.name,
+                ab.decision_no,
+                ab.decision_date,
+                aa.name AS co_quan,
+                da.id AS department_award_id,
+                da.award_batch_id,
+                da.note
+            FROM departments d
+            JOIN department_awards da ON d.id = da.department_id
+            JOIN award_batches ab ON da.award_batch_id = ab.id
+            JOIN award_titles at ON ab.award_title_id = at.id
+            JOIN award_years ay ON ab.award_year_id = ay.id
+            LEFT JOIN award_authorities aa ON ab.authority_id = aa.id
+            WHERE d.id = ?
+            ORDER BY ay.year DESC, ab.decision_date DESC
+        ''', (department_id,))
+        rows = cur.fetchall()
+        conn.close()
+        return rows
+
+    # ----------------------------
+    # Helpful report queries
+    # ----------------------------
+    def get_awards_summary_by_year(self, year):
+        """Trả về tóm tắt (số cá nhân/tập thể) cho 1 năm"""
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cur.execute('''
+            SELECT ay.year,
+                SUM(CASE WHEN at.scope = 'ca_nhan' THEN 1 ELSE 0 END) as ca_nhan_count,
+                SUM(CASE WHEN at.scope = 'tap_the' THEN 1 ELSE 0 END) as tap_the_count
+            FROM award_batches ab
+            JOIN award_years ay ON ab.award_year_id = ay.id
+            JOIN award_titles at ON ab.award_title_id = at.id
+            LEFT JOIN staff_awards sa ON sa.award_batch_id = ab.id
+            LEFT JOIN department_awards da ON da.award_batch_id = ab.id
+            WHERE ay.year = ?
+            GROUP BY ay.year
+        ''', (year,))
+        rows = cur.fetchall()
+        conn.close()
+        return rows
     def add_sample_data(self):
         conn = self.get_connection()
         cur = conn.cursor()
@@ -375,21 +660,27 @@ class DatabaseManager:
             return False
 
     def get_all_award_titles(self):
+        """Trả về id, name, scope, level"""
         conn = self.get_connection()
         cur = conn.cursor()
-        cur.execute("SELECT * FROM award_titles ORDER BY id")
+        cur.execute("SELECT id, name, scope, level FROM award_titles ORDER BY id")
         rows = cur.fetchall()
         conn.close()
         return rows
 
-    def add_award_title(self, name, scope):
+    def add_award_title(self, name, scope, level):
+        """
+        Thêm 1 danh hiệu khen thưởng.
+        - name: tên danh hiệu
+        - scope: 'ca_nhan' hoặc 'tap_the'
+        - level: 'co_so' | 'tinh' | 'trung_uong'
+        """
         conn = self.get_connection()
         cur = conn.cursor()
-        cur.execute("INSERT INTO award_titles (name, scope) VALUES (?, ?)", (name, scope))
+        cur.execute("INSERT INTO award_titles (name, scope, level) VALUES (?, ?, ?)", (name, scope, level))
         conn.commit()
         conn.close()
-
-    # -----------------------
+        # -----------------------
     # Documents methods (unchanged)
     # -----------------------
     def get_all_documents(self):

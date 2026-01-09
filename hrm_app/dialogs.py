@@ -24,3 +24,4 @@ def show_error(title, message):
 
 def ask_confirm(title, message):
     return messagebox.askyesno(title, message)
+# Thay thế toàn bộ file hrm_app/dialogs.py bằng nội dung dưới nếu bạn dùng custom popups
