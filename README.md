@@ -19,6 +19,7 @@ Cấu trúc:
     - staff.py - Quản lý nhân sự (list, add, edit, delete)
     - awards.py - Quản lý danh hiệu & năm (list, add)
     - documents.py - Quản lý hồ sơ (list, add)
+    - work_histories.py 
 
 Cài đặt:
 1. Cài dependencies:
