@@ -1,5 +1,6 @@
 # hrm_app/views/staff.py
-# Cập nhật: thêm tìm kiếm theo tên, menu chuột phải có "Xem hồ sơ" để mở dialog hiển thị hồ sơ của nhân viên
+# Cập nhật UI: bỏ trường STT trong form Thêm/Sửa; STT được hệ thống xử lý tự động trong DB.
+
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import ttk
@@ -11,14 +12,13 @@ class StaffView:
     def __init__(self, app, db):
         self.app = app
         self.db = db
-        # DocumentsView instance để tái sử dụng chức năng quản lý tài liệu (mở dialog cho 1 nhân viên)
         self.docs_view = DocumentsView(app, db)
 
     def render(self):
         header = ctk.CTkFrame(self.app.content_frame, fg_color="transparent")
         header.pack(fill="x", pady=(0,8))
 
-        # Search box (theo yêu cầu)
+        # Search box
         search_frame = ctk.CTkFrame(header, fg_color="transparent")
         search_frame.pack(side="left", fill="x", expand=True, padx=(0,12))
 
@@ -57,11 +57,9 @@ class StaffView:
         if self.app.is_admin:
             self.tree.bind("<Button-3>", self.on_right_click)
         else:
-            # Nếu không phải admin vẫn cho phép xem hồ sơ (double click để xem hồ sơ)
             self.tree.bind("<Double-1>", self.on_double_click_view_docs)
 
     def load_staffs(self, query=None):
-        """Load danh sách nhân viên; nếu query != None -> tìm theo tên"""
         self.tree.delete(*self.tree.get_children())
         if query:
             rows = self.db.search_staffs_by_name(query)
@@ -105,19 +103,16 @@ class StaffView:
         staff_name = values[2]
         self.docs_view.open_staff_documents_dialog(staff_id, staff_name)
 
+    # --------- Add staff (không có STT input) ----------
     def open_add_dialog(self):
         dialog = ctk.CTkToplevel(self.app)
         dialog.title("Thêm nhân viên mới")
-        center_window(dialog, 600, 520)
+        center_window(dialog, 600, 440)
         dialog.transient(self.app)
         dialog.grab_set()
 
-        scroll = ctk.CTkScrollableFrame(dialog)
+        scroll = ctk.CTkFrame(dialog)
         scroll.pack(fill="both", expand=True, padx=12, pady=12)
-
-        # STT
-        ctk.CTkLabel(scroll, text="STT:", font=ctk.CTkFont(size=12, weight="bold")).pack(anchor="w", pady=(8,4))
-        stt_ent = ctk.CTkEntry(scroll, height=34); stt_ent.pack(fill="x")
 
         # Họ tên
         ctk.CTkLabel(scroll, text="Họ và tên:", font=ctk.CTkFont(size=12, weight="bold")).pack(anchor="w", pady=(8,4))
@@ -146,7 +141,6 @@ class StaffView:
         dept_combo.pack(fill="x", pady=(0,8))
 
         def save():
-            stt = stt_ent.get().strip()
             name = name_ent.get().strip()
             dob = dob_ent.get().strip()
             pos = pos_ent.get().strip()
@@ -156,13 +150,15 @@ class StaffView:
                 show_error("Lỗi", "Vui lòng nhập họ tên")
                 return
             dept_id = dept_map.get(dept)
-            self.db.add_staff(int(stt) if stt.isdigit() else None, name, dob if dob else None, pos, phone, dept_id)
+            # Gọi add_staff với stt=None để DB tự gán
+            self.db.add_staff(None, name, dob if dob else None, pos, phone, dept_id)
             show_info("Thành công", "Đã thêm nhân viên")
             dialog.destroy()
             self.load_staffs()
 
         ctk.CTkButton(scroll, text="💾 Lưu nhân viên", command=save, fg_color="#10b981").pack(fill="x", pady=12)
 
+    # --------- Edit staff (không cho sửa STT trực tiếp) ----------
     def open_edit_dialog(self):
         sel = self.tree.selection()
         if not sel:
@@ -172,15 +168,15 @@ class StaffView:
 
         dialog = ctk.CTkToplevel(self.app)
         dialog.title("Sửa thông tin nhân viên")
-        center_window(dialog, 600, 520)
+        center_window(dialog, 600, 440)
         dialog.transient(self.app)
         dialog.grab_set()
 
-        scroll = ctk.CTkScrollableFrame(dialog)
+        scroll = ctk.CTkFrame(dialog)
         scroll.pack(fill="both", expand=True, padx=12, pady=12)
 
-        ctk.CTkLabel(scroll, text="STT:", font=ctk.CTkFont(size=12, weight="bold")).pack(anchor="w", pady=(8,4))
-        stt_ent = ctk.CTkEntry(scroll, height=34); stt_ent.insert(0, str(stt) if stt else ""); stt_ent.pack(fill="x")
+        # Show STT (readonly) so user biết thứ tự
+        ctk.CTkLabel(scroll, text=f"STT (tự động): {stt if stt is not None else '-'}", font=ctk.CTkFont(size=12)).pack(anchor="w", pady=(6,8))
 
         ctk.CTkLabel(scroll, text="Họ và tên:", font=ctk.CTkFont(size=12, weight="bold")).pack(anchor="w", pady=(8,4))
         name_ent = ctk.CTkEntry(scroll, height=34); name_ent.insert(0, name); name_ent.pack(fill="x")
@@ -206,7 +202,6 @@ class StaffView:
         dept_combo.pack(fill="x", pady=(0,8))
 
         def update():
-            new_stt = stt_ent.get().strip()
             new_name = name_ent.get().strip()
             new_dob = dob_ent.get().strip()
             new_pos = pos_ent.get().strip()
@@ -216,7 +211,8 @@ class StaffView:
                 show_error("Lỗi", "Vui lòng nhập họ tên")
                 return
             new_dept_id = dept_map.get(new_dept)
-            self.db.update_staff(staff_id, int(new_stt) if new_stt.isdigit() else None, new_name, new_dob if new_dob else None, new_pos, new_phone, new_dept_id)
+            # Gọi update_staff với stt=None -> DB giữ stt hiện tại (hoặc tự gán khi chuyển dept)
+            self.db.update_staff(staff_id, None, new_name, new_dob if new_dob else None, new_pos, new_phone, new_dept_id)
             show_info("Thành công", "Đã cập nhật nhân viên")
             dialog.destroy()
             self.load_staffs()
