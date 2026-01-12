@@ -173,26 +173,26 @@ class DashboardView:
             
             fig2 = Figure(figsize=(10, 3.5), dpi=100, facecolor='white')
             ax2 = fig2.add_subplot(111)
+   
+        #     # Vẽ biểu đồ tròn
+        #     wedges, texts, autotexts = ax2.pie(values, labels=labels, autopct='%1.1f%%',
+        #                                         colors=colors, startangle=90,
+        #                                         textprops={'fontsize': 10, 'weight': 'bold'})
             
-            # Vẽ biểu đồ tròn
-            wedges, texts, autotexts = ax2.pie(values, labels=labels, autopct='%1.1f%%',
-                                                colors=colors, startangle=90,
-                                                textprops={'fontsize': 10, 'weight': 'bold'})
+        #     # Tô màu chữ phần trăm
+        #     for autotext in autotexts:
+        #         autotext.set_color('white')
+        #         autotext.set_fontsize(11)
             
-            # Tô màu chữ phần trăm
-            for autotext in autotexts:
-                autotext.set_color('white')
-                autotext.set_fontsize(11)
+        #     # Thêm legend với số lượng
+        #     legend_labels = [f'{labels[i]}: {values[i]}' for i in range(len(labels))]
+        #     ax2.legend(legend_labels, loc='center left', bbox_to_anchor=(1, 0.5), fontsize=10)
             
-            # Thêm legend với số lượng
-            legend_labels = [f'{labels[i]}: {values[i]}' for i in range(len(labels))]
-            ax2.legend(legend_labels, loc='center left', bbox_to_anchor=(1, 0.5), fontsize=10)
+        #     fig2.tight_layout()
             
-            fig2.tight_layout()
-            
-            canvas2 = FigureCanvasTkAgg(fig2, chart_frame_2)
-            canvas2.draw()
-            canvas2.get_tk_widget().pack(fill="both", expand=True, padx=12, pady=(0, 12))
-        else:
-            ctk.CTkLabel(chart_frame_2, text="Chưa có dữ liệu phân loại cấp", 
-                        text_color="#94a3b8").pack(pady=40)
+        #     canvas2 = FigureCanvasTkAgg(fig2, chart_frame_2)
+        #     canvas2.draw()
+        #     canvas2.get_tk_widget().pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        # else:
+        #     ctk.CTkLabel(chart_frame_2, text="Chưa có dữ liệu phân loại cấp", 
+        #                 text_color="#94a3b8").pack(pady=40)

@@ -3,6 +3,8 @@
 # và resequence STT khi xóa nhân viên.
 
 import sqlite3
+import random
+from datetime import datetime, timedelta
 
 class DatabaseManager:
     def __init__(self, db_name="hrm_ultimate.db"):
@@ -143,24 +145,9 @@ class DatabaseManager:
         conn.close()
 
         # (Tùy chọn) Add some sample data if empty
-        self._ensure_sample_award_data()
+        self._ensure_complete_sample_data()
 
-    def _ensure_sample_award_data(self):
-        conn = self.get_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM award_years")
-        if cur.fetchone()[0] == 0:
-            cur.execute("INSERT INTO award_years (year) VALUES (2023)")
-            cur.execute("INSERT INTO award_years (year) VALUES (2024)")
-        cur.execute("SELECT COUNT(*) FROM award_titles")
-        if cur.fetchone()[0] == 0:
-            cur.execute("INSERT INTO award_titles (name, scope, level) VALUES (?, ?, ?)",
-                        ("Lao động tiên tiến", "ca_nhan", "co_so"))
-            cur.execute("INSERT INTO award_titles (name, scope, level) VALUES (?, ?, ?)",
-                        ("Tập thể xuất sắc", "tap_the", "tinh"))
-        conn.commit()
-        conn.close()
-
+   
     # ----------------------------
     # Award Years
     # ----------------------------
@@ -822,3 +809,273 @@ class DatabaseManager:
         doc_count = cur.fetchone()[0]
         conn.close()
         return dept_count, staff_count, award_count, doc_count
+    
+    # -----------------------
+    # Sample Data Ensurance
+    # -----------------------
+    def _ensure_complete_sample_data(self):
+        """Thêm dữ liệu mẫu đầy đủ cho tất cả các bảng"""
+        conn = self.get_connection()
+        cur = conn.cursor()
+        
+        # 1. Kiểm tra và thêm Departments
+        cur.execute("SELECT COUNT(*) FROM departments")
+        if cur.fetchone()[0] == 0:
+            departments = [
+                ("Phòng Công nghệ thông tin", "Quản lý hệ thống và phát triển phần mềm"),
+                ("Phòng Nhân sự", "Quản lý nhân sự và tuyển dụng"),
+                ("Phòng Kế toán", "Quản lý tài chính và kế toán"),
+                ("Phòng Hành chính", "Quản lý hành chính tổng hợp"),
+                ("Phòng Kinh doanh", "Phát triển kinh doanh và chăm sóc khách hàng"),
+            ]
+            cur.executemany("INSERT INTO departments (name, description) VALUES (?, ?)", departments)
+            print("✓ Đã thêm 5 phòng ban mẫu")
+
+        # 2. Kiểm tra và thêm Award Years
+        cur.execute("SELECT COUNT(*) FROM award_years")
+        if cur.fetchone()[0] == 0:
+            years = [(2020,), (2021,), (2022,), (2023,), (2024,), (2025,)]
+            cur.executemany("INSERT INTO award_years (year) VALUES (?)", years)
+            print("✓ Đã thêm năm khen thưởng 2020-2025")
+
+        # 3. Kiểm tra và thêm Award Authorities
+        cur.execute("SELECT COUNT(*) FROM award_authorities")
+        if cur.fetchone()[0] == 0:
+            authorities = [
+                ("UBND Thành phố",),
+                ("Sở Nội vụ",),
+                ("Ban Tổ chức Tỉnh ủy",),
+                ("Bộ Nội vụ",),
+                ("Thủ tướng Chính phủ",),
+            ]
+            cur.executemany("INSERT INTO award_authorities (name) VALUES (?)", authorities)
+            print("✓ Đã thêm 5 cơ quan ban hành")
+
+        # 4. Kiểm tra và thêm Award Titles
+        cur.execute("SELECT COUNT(*) FROM award_titles")
+        if cur.fetchone()[0] == 0:
+            titles = [
+                # Cá nhân - Cơ sở
+                ("Lao động tiên tiến", "ca_nhan", "co_so"),
+                ("Chiến sĩ thi đua cơ sở", "ca_nhan", "co_so"),
+                ("Hoàn thành xuất sắc nhiệm vụ", "ca_nhan", "co_so"),
+                # Cá nhân - Tỉnh
+                ("Chiến sĩ thi đua cấp tỉnh", "ca_nhan", "tinh"),
+                ("Bằng khen UBND Tỉnh", "ca_nhan", "tinh"),
+                # Cá nhân - Trung ương
+                ("Chiến sĩ thi đua toàn quốc", "ca_nhan", "trung_uong"),
+                ("Huân chương Lao động hạng Ba", "ca_nhan", "trung_uong"),
+                ("Bằng khen Thủ tướng Chính phủ", "ca_nhan", "trung_uong"),
+                # Tập thể - Cơ sở
+                ("Tập thể lao động tiên tiến", "tap_the", "co_so"),
+                ("Tập thể xuất sắc", "tap_the", "co_so"),
+                # Tập thể - Tỉnh
+                ("Cờ thi đua cấp tỉnh", "tap_the", "tinh"),
+                ("Bằng khen UBND Tỉnh (Tập thể)", "tap_the", "tinh"),
+                # Tập thể - Trung ương
+                ("Cờ thi đua của Chính phủ", "tap_the", "trung_uong"),
+                ("Huân chương Lao động hạng Ba (Tập thể)", "tap_the", "trung_uong"),
+            ]
+            cur.executemany("INSERT INTO award_titles (name, scope, level) VALUES (?, ?, ?)", titles)
+            print("✓ Đã thêm 14 danh hiệu khen thưởng")
+
+        conn.commit()
+
+        # 5. Kiểm tra và thêm Staffs
+        cur.execute("SELECT COUNT(*) FROM staffs")
+        if cur.fetchone()[0] == 0:
+            # Lấy danh sách department_id
+            cur.execute("SELECT id FROM departments ORDER BY id")
+            dept_ids = [row[0] for row in cur.fetchall()]
+            
+            staff_data = [
+                # Phòng IT (dept 1)
+                (1, "Nguyễn Văn An", "1985-03-15", "Trưởng phòng", "0901234567", dept_ids[0]),
+                (2, "Trần Thị Bích", "1990-07-22", "Lập trình viên", "0902345678", dept_ids[0]),
+                (3, "Lê Văn Cường", "1992-11-08", "Lập trình viên", "0903456789", dept_ids[0]),
+                (4, "Phạm Thị Dung", "1988-05-12", "System Admin", "0904567890", dept_ids[0]),
+                # Phòng Nhân sự (dept 2)
+                (1, "Hoàng Văn Em", "1987-09-25", "Trưởng phòng", "0905678901", dept_ids[1]),
+                (2, "Đỗ Thị Phượng", "1991-02-14", "Chuyên viên", "0906789012", dept_ids[1]),
+                (3, "Vũ Văn Giang", "1993-06-30", "Chuyên viên", "0907890123", dept_ids[1]),
+                # Phòng Kế toán (dept 3)
+                (1, "Ngô Thị Hoa", "1986-12-05", "Trưởng phòng", "0908901234", dept_ids[2]),
+                (2, "Bùi Văn Ích", "1989-08-18", "Kế toán trưởng", "0909012345", dept_ids[2]),
+                (3, "Đinh Thị Kim", "1994-04-27", "Kế toán viên", "0900123456", dept_ids[2]),
+                # Phòng Hành chính (dept 4)
+                (1, "Trương Văn Long", "1984-10-11", "Trưởng phòng", "0911234567", dept_ids[3]),
+                (2, "Phan Thị Mai", "1992-01-20", "Văn thư", "0912345678", dept_ids[3]),
+                # Phòng Kinh doanh (dept 5)
+                (1, "Lý Văn Nam", "1988-07-09", "Trưởng phòng", "0913456789", dept_ids[4]),
+                (2, "Cao Thị Oanh", "1991-03-16", "Nhân viên kinh doanh", "0914567890", dept_ids[4]),
+                (3, "Đặng Văn Phúc", "1995-09-23", "Nhân viên kinh doanh", "0915678901", dept_ids[4]),
+            ]
+            
+            cur.executemany('''
+                INSERT INTO staffs (stt, full_name, dob, position, phone, department_id)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', staff_data)
+            print("✓ Đã thêm 15 nhân viên mẫu")
+
+        conn.commit()
+
+        # 6. Kiểm tra và thêm Award Batches
+        cur.execute("SELECT COUNT(*) FROM award_batches")
+        if cur.fetchone()[0] == 0:
+            # Lấy IDs
+            cur.execute("SELECT id FROM award_years ORDER BY year DESC")
+            year_ids = [row[0] for row in cur.fetchall()]
+            
+            cur.execute("SELECT id FROM award_titles")
+            title_ids = [row[0] for row in cur.fetchall()]
+            
+            cur.execute("SELECT id FROM award_authorities")
+            auth_ids = [row[0] for row in cur.fetchall()]
+            
+            # Tạo các đợt khen thưởng (20 đợt)
+            batches = []
+            for i in range(20):
+                year_id = random.choice(year_ids)
+                title_id = random.choice(title_ids)
+                auth_id = random.choice(auth_ids)
+                
+                # Tạo ngày quyết định ngẫu nhiên
+                base_date = datetime(2020, 1, 1)
+                random_days = random.randint(0, 1825)  # 5 years
+                decision_date = (base_date + timedelta(days=random_days)).strftime("%Y-%m-%d")
+                
+                decision_no = f"QD-{1000 + i}/2024"
+                note = f"Đợt khen thưởng lần {i+1}"
+                
+                batches.append((year_id, title_id, auth_id, decision_no, decision_date, note))
+            
+            cur.executemany('''
+                INSERT INTO award_batches (award_year_id, award_title_id, authority_id, decision_no, decision_date, note)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', batches)
+            print("✓ Đã thêm 20 đợt khen thưởng")
+
+        conn.commit()
+
+        # 7. Kiểm tra và thêm Staff Awards
+        cur.execute("SELECT COUNT(*) FROM staff_awards")
+        if cur.fetchone()[0] == 0:
+            cur.execute("SELECT id FROM staffs")
+            staff_ids = [row[0] for row in cur.fetchall()]
+            
+            cur.execute("SELECT id FROM award_batches")
+            batch_ids = [row[0] for row in cur.fetchall()]
+            
+            # Tạo 30 khen thưởng cá nhân ngẫu nhiên
+            staff_awards = []
+            for _ in range(30):
+                staff_id = random.choice(staff_ids)
+                batch_id = random.choice(batch_ids)
+                note = random.choice([
+                    "Hoàn thành xuất sắc nhiệm vụ",
+                    "Có nhiều đóng góp cho đơn vị",
+                    "Gương mẫu, tận tụy",
+                    "",
+                ])
+                staff_awards.append((staff_id, batch_id, note))
+            
+            cur.executemany('''
+                INSERT INTO staff_awards (staff_id, award_batch_id, note)
+                VALUES (?, ?, ?)
+            ''', staff_awards)
+            print("✓ Đã thêm 30 khen thưởng cá nhân")
+
+        conn.commit()
+
+        # 8. Kiểm tra và thêm Department Awards
+        cur.execute("SELECT COUNT(*) FROM department_awards")
+        if cur.fetchone()[0] == 0:
+            cur.execute("SELECT id FROM departments")
+            dept_ids = [row[0] for row in cur.fetchall()]
+            
+            cur.execute("SELECT id FROM award_batches")
+            batch_ids = [row[0] for row in cur.fetchall()]
+            
+            # Tạo 15 khen thưởng tập thể
+            dept_awards = []
+            for _ in range(15):
+                dept_id = random.choice(dept_ids)
+                batch_id = random.choice(batch_ids)
+                note = random.choice([
+                    "Tập thể hoàn thành xuất sắc nhiệm vụ năm",
+                    "Đơn vị dẫn đầu phong trào thi đua",
+                    "Có nhiều thành tích nổi bật",
+                    "",
+                ])
+                dept_awards.append((dept_id, batch_id, note))
+            
+            cur.executemany('''
+                INSERT INTO department_awards (department_id, award_batch_id, note)
+                VALUES (?, ?, ?)
+            ''', dept_awards)
+            print("✓ Đã thêm 15 khen thưởng tập thể")
+
+        conn.commit()
+
+        # 9. Kiểm tra và thêm Documents
+        cur.execute("SELECT COUNT(*) FROM documents")
+        if cur.fetchone()[0] == 0:
+            cur.execute("SELECT id FROM staffs")
+            staff_ids = [row[0] for row in cur.fetchall()]
+            
+            loai_ho_so_list = ["Hợp đồng", "Quyết định", "Văn bằng", "Chứng chỉ", "Sơ yếu lý lịch"]
+            
+            docs = []
+            for i, staff_id in enumerate(staff_ids[:10]):  # 10 nhân viên đầu
+                for j in range(2):  # Mỗi người 2 tài liệu
+                    loai = random.choice(loai_ho_so_list)
+                    so_ky_hieu = f"SV-{100+i*10+j}"
+                    ngay_thang = f"2024-{random.randint(1,12):02d}-{random.randint(1,28):02d}"
+                    ten_loai = f"Tài liệu {loai}"
+                    so_to = random.randint(1, 10)
+                    ghi_chu = f"Ghi chú cho {loai}"
+                    file_url = f"/files/doc_{i}_{j}.pdf"
+                    
+                    docs.append((staff_id, loai, so_ky_hieu, ngay_thang, ten_loai, so_to, ghi_chu, file_url))
+            
+            cur.executemany('''
+                INSERT INTO documents (staff_id, loai_ho_so, so_va_ky_hieu, ngay_thang, 
+                                      ten_loai_trich_yeu_noi_dung, so_to, ghi_chu, file_url)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', docs)
+            print("✓ Đã thêm 20 tài liệu mẫu")
+
+        conn.commit()
+
+        # 10. Kiểm tra và thêm Work Histories
+        cur.execute("SELECT COUNT(*) FROM work_histories")
+        if cur.fetchone()[0] == 0:
+            cur.execute("SELECT id FROM staffs")
+            staff_ids = [row[0] for row in cur.fetchall()]
+            
+            histories = []
+            positions = ["Nhân viên", "Chuyên viên", "Trưởng phòng phó", "Trưởng phòng"]
+            
+            for staff_id in staff_ids[:8]:  # 8 nhân viên đầu
+                for k in range(2):  # Mỗi người 2 quá trình
+                    decision_no = f"QĐ-{200+staff_id*10+k}/2024"
+                    ngay_qd = f"202{random.randint(0,4)}-{random.randint(1,12):02d}-01"
+                    vi_tri = random.choice(positions)
+                    giu_chuc = f"202{random.randint(0,4)}-{random.randint(1,12):02d}-01"
+                    cong_tac = f"202{random.randint(0,4)}-{random.randint(1,12):02d}-01"
+                    ghi_chu = f"Bổ nhiệm {vi_tri}"
+                    
+                    histories.append((staff_id, decision_no, ngay_qd, vi_tri, giu_chuc, cong_tac, ghi_chu))
+            
+            cur.executemany('''
+                INSERT INTO work_histories (staff_id, decision_no, ngay_quyet_dinh, 
+                                           cac_vi_tri_cong_tac, giu_chuc_vu, cong_tac_tai_cq, ghi_chu)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', histories)
+            print("✓ Đã thêm 16 quá trình công tác")
+
+        conn.commit()
+        conn.close()
+        print("=" * 60)
+        print("✓ HOÀN TẤT: Đã thêm đầy đủ dữ liệu mẫu vào database")
+        print("=" * 60)
