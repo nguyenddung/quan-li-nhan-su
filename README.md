@@ -29,9 +29,10 @@ Cài đặt:
 
 2. Chạy:
    python main.py
+   hoặc chạy folder dist
 
 Ghi chú:
 - Database mặc định: `hrm_ultimate.db` tạo tự động nếu chưa có.
 - Quyền admin (is_admin) mặc định bật; bạn có thể tắt để test chế độ chỉ xem.
-- Mỗi view là 1 class riêng, dễ tách test và debug.
-- Mã đã được comment tiếng Việt để bạn dễ hiểu logic từng phần.
+- Mỗi view là 1 class riêng, dễ tách test và debug
+- 
